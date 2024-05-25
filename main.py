@@ -32,7 +32,7 @@ decoder = keras.models.load_model('src/models/decoder1.h5')
 
 app.include_router(create_api_route(encoder, decoder))
 
-@app.get('/')
+@app.get('/docs')
 def read_root():
     return {"Welcome": "Hello World"}
 
