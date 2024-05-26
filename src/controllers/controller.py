@@ -1,11 +1,11 @@
 from click import File
-from fastapi import Response, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import UploadFile
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 import keras
 import os
-import json
 import numpy as np
-from io import BytesIO
+import io
+from PIL import Image
 
 def procesing_image_for_encoded(image):
     with open("temp_image.jpg", "wb") as buffer:
@@ -27,12 +27,24 @@ async def post_image_for_encoded(encoder, image):
     img_array = procesing_image_for_encoded(image)
     encoded_img = encoder.predict(img_array)
     np.save('encoded_img.npy',encoded_img)
-    encoded_img_list = encoded_img.tolist()
 
-    response= {
-        "encoded_image": encoded_img_list,
-    }
-    return json.dumps(response)
+    data_array = np.array(encoded_img)
+
+    # Normaliza los datos para que estén en el rango [0, 255]
+    data_array_normalized = (data_array - np.min(data_array)) / (np.max(data_array) - np.min(data_array)) * 255
+
+    # Convierte el array normalizado a tipo uint8
+    data_array_uint8 = data_array_normalized.astype(np.uint8)
+
+    # Convierte el array a una imagen
+    image = Image.fromarray(data_array_uint8)
+
+    # Guarda la imagen en un objeto BytesIO
+    img_io = io.BytesIO()
+    image.save(img_io,'PNG')
+    img_io.seek(0)
+
+    return StreamingResponse(img_io, media_type="image/png")
 
 
 async def get_encoded_image():
@@ -51,12 +63,23 @@ async def post_image_for_decoded(decoder, image: UploadFile = File(...)):
 
     decoded_img = decoder.predict(encoded_img)
 
-    decoded_img_list = decoded_img.tolist()
+    data_array = np.array(decoded_img)
 
-    response= {
-        "decoded_image": decoded_img_list
-    }
-    return json.dumps(response)
+    # Normaliza los datos para que estén en el rango [0, 255]
+    data_array_normalized = (data_array - np.min(data_array)) / (np.max(data_array) - np.min(data_array)) * 255
+
+    # Convierte el array normalizado a tipo uint8
+    data_array_uint8 = data_array_normalized.astype(np.uint8)
+
+    # Convierte el array a una imagen
+    image = Image.fromarray(data_array_uint8)
+
+    # Guarda la imagen en un objeto BytesIO
+    img_io = io.BytesIO()
+    image.save(img_io, 'PNG')
+    img_io.seek(0)
+
+    return StreamingResponse(img_io, media_type="image/png")
 
 
 
